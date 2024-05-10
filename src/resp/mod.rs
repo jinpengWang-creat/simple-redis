@@ -2,7 +2,7 @@ mod decode;
 mod encode;
 
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     ops::{Deref, DerefMut},
 };
 
@@ -16,7 +16,7 @@ pub trait RespEncode {
 pub trait RespDecode {
     fn decode(self) -> Result<RespFrame, String>;
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[enum_dispatch(RespEncode)]
 pub enum RespFrame {
     SimpleString(SimpleString),
@@ -50,7 +50,7 @@ impl Deref for SimpleString {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SimpleError(String);
 
 impl SimpleError {
@@ -67,7 +67,7 @@ impl Deref for SimpleError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct BulkString(Vec<u8>);
 
 impl BulkString {
@@ -84,7 +84,7 @@ impl Deref for BulkString {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RespArray(Vec<RespFrame>);
 
 impl RespArray {
@@ -101,7 +101,7 @@ impl Deref for RespArray {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RespNull;
 
 impl RespNull {
@@ -110,7 +110,12 @@ impl RespNull {
     }
 }
 
-#[derive(Debug)]
+impl Default for RespNull {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+#[derive(Debug, PartialEq)]
 pub struct RespNullArray;
 
 impl RespNullArray {
@@ -119,7 +124,13 @@ impl RespNullArray {
     }
 }
 
-#[derive(Debug)]
+impl Default for RespNullArray {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct RespNullBulkString;
 
 impl RespNullBulkString {
@@ -128,7 +139,12 @@ impl RespNullBulkString {
     }
 }
 
-#[derive(Debug)]
+impl Default for RespNullBulkString {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+#[derive(Debug, PartialEq)]
 pub struct RespMap(BTreeMap<SimpleString, RespFrame>);
 
 impl RespMap {
@@ -145,17 +161,28 @@ impl Deref for RespMap {
     }
 }
 
+impl Default for RespMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl DerefMut for RespMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-#[derive(Debug)]
-pub struct RespSet(HashSet<RespFrame>);
+#[derive(Debug, PartialEq)]
+pub struct RespSet(Vec<RespFrame>);
+
+impl RespSet {
+    pub fn new(vec: impl Into<Vec<RespFrame>>) -> Self {
+        RespSet(vec.into())
+    }
+}
 
 impl Deref for RespSet {
-    type Target = HashSet<RespFrame>;
+    type Target = Vec<RespFrame>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

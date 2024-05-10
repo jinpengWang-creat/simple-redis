@@ -25,19 +25,19 @@ impl RespDecode for BytesMut {
 }
 
 fn parse_simple_string(bytes: BytesMut) -> Result<RespFrame, String> {
-    let bytes = bytes.strip_suffix(b"\r\n").ok_or_else(|| "error format!")?;
+    let bytes = bytes.strip_suffix(b"\r\n").ok_or("error format!")?;
     let content = String::from_utf8(bytes.to_vec()).map_err(|e| format!("error: {:?}", e))?;
     Ok(RespFrame::SimpleString(SimpleString::new(content)))
 }
 
 fn parse_simple_error(bytes: BytesMut) -> Result<RespFrame, String> {
-    let bytes = bytes.strip_suffix(b"\r\n").ok_or_else(|| "error format!")?;
+    let bytes = bytes.strip_suffix(b"\r\n").ok_or("error format!")?;
     let content = String::from_utf8(bytes.to_vec()).map_err(|e| format!("error: {:?}", e))?;
     Ok(RespFrame::SimpleError(SimpleError::new(content)))
 }
 
 fn parse_integer(bytes: BytesMut) -> Result<RespFrame, String> {
-    let bytes = bytes.strip_suffix(b"\r\n").ok_or_else(|| "error format!")?;
+    let bytes = bytes.strip_suffix(b"\r\n").ok_or("error format!")?;
     let content = String::from_utf8(bytes.to_vec()).map_err(|e| format!("error: {:?}", e))?;
     Ok(RespFrame::Integer(
         content.parse().map_err(|e| format!("error: {:?}", e))?,
@@ -49,24 +49,20 @@ fn parse_null(_bytes: BytesMut) -> Result<RespFrame, String> {
 }
 
 fn parse_bool(bytes: BytesMut) -> Result<RespFrame, String> {
-    let bytes = bytes.strip_suffix(b"\r\n").ok_or_else(|| "error format!")?;
+    let bytes = bytes.strip_suffix(b"\r\n").ok_or("error format!")?;
     let content = String::from_utf8(bytes.to_vec()).map_err(|e| format!("error: {:?}", e))?;
-    Ok(RespFrame::Boolean(if content == "t" {
-        true
-    } else {
-        false
-    }))
+    Ok(RespFrame::Boolean(content == "t"))
 }
 
 fn parse_double(bytes: BytesMut) -> Result<RespFrame, String> {
-    let bytes = bytes.strip_suffix(b"\r\n").ok_or_else(|| "error format!")?;
+    let bytes = bytes.strip_suffix(b"\r\n").ok_or("error format!")?;
     let content = String::from_utf8(bytes.to_vec()).map_err(|e| format!("error: {:?}", e))?;
     Ok(RespFrame::Double(
         content.parse().map_err(|e| format!("error: {:?}", e))?,
     ))
 }
 
-fn parse_bulk_string(bytes: BytesMut) -> Result<RespFrame, String> {
+fn _parse_bulk_string(_bytes: BytesMut) -> Result<RespFrame, String> {
     todo!()
 }
 #[cfg(test)]
@@ -78,16 +74,5 @@ mod tests {
         let s: BytesMut = "-hello\r\n".into();
         let ss = s.decode();
         println!("{:?}", ss);
-    }
-
-    #[test]
-    fn test_slice_chunk() {
-        let s = b"hello\r\nworld\r\nthe\r\n";
-
-        let ss = s.chunk_by(|a, b| *a != b'\r' || *b != b'\n');
-
-        for s in ss {
-            println!("{:?}", String::from_utf8_lossy(s));
-        }
     }
 }

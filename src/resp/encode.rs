@@ -212,5 +212,13 @@ mod tests {
     }
 
     #[test]
-    fn test_set() {}
+    fn test_set() {
+        let frame: RespFrame = RespSet::new(vec![
+            10.into(),
+            BulkString::new("hello").into(),
+            SimpleString::new("world").into(),
+        ])
+        .into();
+        assert_eq!(frame.encode(), b"~3\r\n:10\r\n$5\r\nhello\r\n+world\r\n");
+    }
 }
