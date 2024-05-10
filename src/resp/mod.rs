@@ -6,16 +6,37 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use bytes::BytesMut;
 use enum_dispatch::enum_dispatch;
+use thiserror::Error;
 
 #[enum_dispatch]
 pub trait RespEncode {
     fn encode(self) -> Vec<u8>;
 }
 
-pub trait RespDecode {
-    fn decode(self) -> Result<RespFrame, String>;
+pub trait RespDecode: Sized {
+    fn decode(buf: &mut BytesMut) -> Result<Self, RespError>;
 }
+
+#[derive(Error, Debug, PartialEq)]
+pub enum RespError {
+    #[error("Invalid frame: {0}")]
+    InvalidFrame(String),
+    #[error("Invalid frame type: {0}")]
+    InvalidFrameType(String),
+    #[error("Invalid frame length: {0}")]
+    InvalidFrameLength(isize),
+    #[error("Invalid frame data: {0}")]
+    InvalidFrameData(String),
+    #[error("Invalid utf8 value: {0}")]
+    InvalidUtf8Error(#[from] std::string::FromUtf8Error),
+    #[error("Invalid int value: {0}")]
+    InvalidIntError(#[from] std::num::ParseIntError),
+    #[error("Frame is not complete")]
+    NotComplete,
+}
+
 #[derive(Debug, PartialEq)]
 #[enum_dispatch(RespEncode)]
 pub enum RespFrame {

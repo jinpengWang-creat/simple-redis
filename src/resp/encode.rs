@@ -117,19 +117,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_string() {
+    fn test_encode_simple_string() {
         let simple_string: RespFrame = SimpleString::new("hello").into();
         assert_eq!(simple_string.encode(), b"+hello\r\n")
     }
 
     #[test]
-    fn test_simple_error() {
+    fn test_encode_simple_error() {
         let simple_error: RespFrame = SimpleError::new("ERR some error!").into();
         assert_eq!(simple_error.encode(), b"-ERR some error!\r\n")
     }
 
     #[test]
-    fn test_integer() {
+    fn test_encode_integer() {
         let i: RespFrame = 10.into();
         assert_eq!(i.encode(), b":10\r\n");
 
@@ -138,19 +138,19 @@ mod tests {
     }
 
     #[test]
-    fn test_bulk_string() {
+    fn test_encode_bulk_string() {
         let bulk_string: RespFrame = BulkString::new(b"hello").into();
         assert_eq!(bulk_string.encode(), b"$5\r\nhello\r\n");
     }
 
     #[test]
-    fn test_null_bulk_string() {
+    fn test_encode_null_bulk_string() {
         let null_bulk_string: RespFrame = RespNullBulkString::new().into();
         assert_eq!(null_bulk_string.encode(), b"$-1\r\n");
     }
 
     #[test]
-    fn test_array() {
+    fn test_encode_array() {
         let array: RespFrame = RespArray::new(vec![
             BulkString::new(b"set").into(),
             BulkString::new(b"hello").into(),
@@ -164,19 +164,19 @@ mod tests {
     }
 
     #[test]
-    fn test_null_array() {
+    fn test_encode_null_array() {
         let null_array: RespFrame = RespNullArray::new().into();
         assert_eq!(null_array.encode(), b"*-1\r\n");
     }
 
     #[test]
-    fn test_null() {
+    fn test_encode_null() {
         let null: RespFrame = RespNull::new().into();
         assert_eq!(null.encode(), b"_\r\n");
     }
 
     #[test]
-    fn test_bool() {
+    fn test_encode_bool() {
         let bo: RespFrame = true.into();
         assert_eq!(bo.encode(), b"#t\r\n");
 
@@ -185,7 +185,7 @@ mod tests {
     }
 
     #[test]
-    fn test_double() {
+    fn test_encode_double() {
         let f: RespFrame = (123.456).into();
         assert_eq!(f.encode(), b",123.456\r\n");
         let f: RespFrame = (-123.456).into();
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map() {
+    fn test_encode_map() {
         let mut map = RespMap::new();
         map.insert(
             SimpleString::new("hello"),
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set() {
+    fn test_encode_set() {
         let frame: RespFrame = RespSet::new(vec![
             10.into(),
             BulkString::new("hello").into(),

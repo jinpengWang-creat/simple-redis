@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.83"
 bytes = "1.6.0"
 enum_dispatch = "0.3.13"
+thiserror = "1.0.60"
 tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "net", "io-util", "macros"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
