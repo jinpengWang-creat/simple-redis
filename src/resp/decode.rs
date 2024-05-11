@@ -29,28 +29,28 @@ impl RespDecode for RespFrame {
 
 impl RespDecode for SimpleString {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"+")?;
+        let (data, end) = extract_simple_frame_data(buf, b"+", "SimpleString(+)")?;
         Ok(String::from_utf8((&data[1..end]).into()).map(SimpleString::new)?)
     }
 }
 
 impl RespDecode for SimpleError {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"-")?;
+        let (data, end) = extract_simple_frame_data(buf, b"-", "SimpleError(-)")?;
         Ok(String::from_utf8((&data[1..end]).into()).map(SimpleError::new)?)
     }
 }
 
 impl RespDecode for i64 {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b":")?;
+        let (data, end) = extract_simple_frame_data(buf, b":", "Integer(:)")?;
         Ok(String::from_utf8((&data[1..end]).into())?.parse()?)
     }
 }
 
 impl RespDecode for bool {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"#")?;
+        let (data, end) = extract_simple_frame_data(buf, b"#", "Bool(#)")?;
         match String::from_utf8((&data[1..end]).into())?.as_str() {
             "t" => Ok(true),
             "f" => Ok(false),
@@ -61,7 +61,7 @@ impl RespDecode for bool {
 
 impl RespDecode for BulkString {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"$")?;
+        let (data, end) = extract_simple_frame_data(buf, b"$", "BulkString($)")?;
         let length: isize = String::from_utf8((&data[1..end]).into())?.parse()?;
         if length < -1 {
             return Err(RespError::InvalidFrameLength(length));
@@ -84,7 +84,7 @@ impl RespDecode for BulkString {
 
 impl RespDecode for RespArray {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"*")?;
+        let (data, end) = extract_simple_frame_data(buf, b"*", "Array(*)")?;
         let length: isize = String::from_utf8((&data[1..end]).into())?.parse()?;
         if length < -1 {
             return Err(RespError::InvalidFrameLength(length));
@@ -106,7 +106,7 @@ impl RespDecode for RespArray {
 
 impl RespDecode for RespNull {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"_")?;
+        let (data, end) = extract_simple_frame_data(buf, b"_", "Null(_)")?;
         if data.len() != 3 || end != 1 {
             return Err(RespError::InvalidFrameData(format!("{:?}", data)));
         }
@@ -116,14 +116,14 @@ impl RespDecode for RespNull {
 
 impl RespDecode for f64 {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b",")?;
+        let (data, end) = extract_simple_frame_data(buf, b",", "Double(,)")?;
         Ok(String::from_utf8((&data[1..end]).into())?.parse()?)
     }
 }
 
 impl RespDecode for RespMap {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"%")?;
+        let (data, end) = extract_simple_frame_data(buf, b"%", "Map(%)")?;
         let length: isize = String::from_utf8((&data[1..end]).into())?.parse()?;
         if length < 0 {
             return Err(RespError::InvalidFrameLength(length));
@@ -146,7 +146,7 @@ impl RespDecode for RespMap {
 
 impl RespDecode for RespSet {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
-        let (data, end) = extract_simple_frame_data(buf, b"~")?;
+        let (data, end) = extract_simple_frame_data(buf, b"~", "Set(~)")?;
         let length: isize = String::from_utf8((&data[1..end]).into())?.parse()?;
         if length < 0 {
             return Err(RespError::InvalidFrameLength(length));
@@ -177,6 +177,7 @@ impl RespDecode for RespSet {
 fn extract_simple_frame_data(
     buf: &mut BytesMut,
     prefix: &[u8],
+    expect_type: &str,
 ) -> Result<(BytesMut, usize), RespError> {
     if buf.len() < 3 {
         return Err(RespError::NotComplete);
@@ -184,9 +185,8 @@ fn extract_simple_frame_data(
 
     if !buf.starts_with(prefix) {
         return Err(RespError::InvalidFrameType(format!(
-            "expect: FrameType({}), got {:?}",
-            String::from_utf8_lossy(prefix),
-            buf
+            "expect: {}, got {:?}",
+            expect_type, buf
         )));
     }
 
