@@ -33,6 +33,8 @@ pub enum RespError {
     InvalidUtf8Error(#[from] std::string::FromUtf8Error),
     #[error("Invalid int value: {0}")]
     InvalidIntError(#[from] std::num::ParseIntError),
+    #[error("Invalid float value: {0}")]
+    InvalidFloatError(#[from] std::num::ParseFloatError),
     #[error("Frame is not complete")]
     NotComplete,
 }
@@ -44,9 +46,7 @@ pub enum RespFrame {
     SimpleError(SimpleError),
     Integer(i64),
     BulkString(BulkString),
-    NullBulkString(RespNullBulkString),
     Array(RespArray),
-    NullArray(RespNullArray),
     Null(RespNull),
     Boolean(bool),
     Double(f64),
@@ -89,16 +89,16 @@ impl Deref for SimpleError {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct BulkString(Vec<u8>);
+pub struct BulkString(Option<Vec<u8>>);
 
 impl BulkString {
-    pub fn new(vec: impl Into<Vec<u8>>) -> Self {
-        BulkString(vec.into())
+    pub fn new(vec: Option<impl Into<Vec<u8>>>) -> Self {
+        BulkString(vec.and_then(|v| Some(v.into())))
     }
 }
 
 impl Deref for BulkString {
-    type Target = Vec<u8>;
+    type Target = Option<Vec<u8>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -106,16 +106,16 @@ impl Deref for BulkString {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RespArray(Vec<RespFrame>);
+pub struct RespArray(Option<Vec<RespFrame>>);
 
 impl RespArray {
-    pub fn new(vec: impl Into<Vec<RespFrame>>) -> Self {
-        RespArray(vec.into())
+    pub fn new(vec: Option<impl Into<Vec<RespFrame>>>) -> Self {
+        RespArray(vec.and_then(|v| Some(v.into())))
     }
 }
 
 impl Deref for RespArray {
-    type Target = Vec<RespFrame>;
+    type Target = Option<Vec<RespFrame>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

@@ -1,8 +1,7 @@
 const DEFAULT_FRAME_SIZE: usize = 16;
 
 use crate::{
-    BulkString, RespArray, RespEncode, RespMap, RespNull, RespNullArray, RespNullBulkString,
-    RespSet, SimpleError, SimpleString,
+    BulkString, RespArray, RespEncode, RespMap, RespNull, RespSet, SimpleError, SimpleString,
 };
 
 impl RespEncode for SimpleString {
@@ -25,36 +24,30 @@ impl RespEncode for i64 {
 
 impl RespEncode for BulkString {
     fn encode(self) -> Vec<u8> {
-        let len = self.len();
-        let mut result = Vec::with_capacity(len + DEFAULT_FRAME_SIZE);
-        result.extend_from_slice(format!("${}\r\n", len).as_bytes());
-        result.extend_from_slice(&self);
-        result.extend_from_slice(b"\r\n");
-        result
-    }
-}
-
-impl RespEncode for RespNullBulkString {
-    fn encode(self) -> Vec<u8> {
-        b"$-1\r\n".to_vec()
+        let bulk = self.0.and_then(|bulk_string| {
+            let len = bulk_string.len();
+            let mut result = Vec::with_capacity(len + DEFAULT_FRAME_SIZE);
+            result.extend_from_slice(format!("${}\r\n", len).as_bytes());
+            result.extend_from_slice(&bulk_string);
+            result.extend_from_slice(b"\r\n");
+            Some(result)
+        });
+        bulk.unwrap_or(b"$-1\r\n".to_vec())
     }
 }
 
 impl RespEncode for RespArray {
     fn encode(self) -> Vec<u8> {
-        let len = self.len();
-        let mut result = Vec::with_capacity(len * DEFAULT_FRAME_SIZE);
-        result.extend_from_slice(format!("*{}\r\n", len).as_bytes());
-        self.0
-            .into_iter()
-            .for_each(|frame| result.extend_from_slice(&frame.encode()));
-        result
-    }
-}
-
-impl RespEncode for RespNullArray {
-    fn encode(self) -> Vec<u8> {
-        b"*-1\r\n".to_vec()
+        let array = self.0.and_then(|array| {
+            let len = array.len();
+            let mut result = Vec::with_capacity(len * DEFAULT_FRAME_SIZE);
+            result.extend_from_slice(format!("*{}\r\n", len).as_bytes());
+            array
+                .into_iter()
+                .for_each(|frame| result.extend_from_slice(&frame.encode()));
+            Some(result)
+        });
+        array.unwrap_or(b"*-1\r\n".to_vec())
     }
 }
 
@@ -139,34 +132,22 @@ mod tests {
 
     #[test]
     fn test_encode_bulk_string() {
-        let bulk_string: RespFrame = BulkString::new(b"hello").into();
+        let bulk_string: RespFrame = BulkString::new(Some(b"hello")).into();
         assert_eq!(bulk_string.encode(), b"$5\r\nhello\r\n");
     }
 
     #[test]
-    fn test_encode_null_bulk_string() {
-        let null_bulk_string: RespFrame = RespNullBulkString::new().into();
-        assert_eq!(null_bulk_string.encode(), b"$-1\r\n");
-    }
-
-    #[test]
     fn test_encode_array() {
-        let array: RespFrame = RespArray::new(vec![
-            BulkString::new(b"set").into(),
-            BulkString::new(b"hello").into(),
-            BulkString::new(b"world").into(),
-        ])
+        let array: RespFrame = RespArray::new(Some(vec![
+            BulkString::new(Some(b"set")).into(),
+            BulkString::new(Some(b"hello")).into(),
+            BulkString::new(Some(b"world")).into(),
+        ]))
         .into();
         assert_eq!(
             array.encode(),
             b"*3\r\n$3\r\nset\r\n$5\r\nhello\r\n$5\r\nworld\r\n"
         );
-    }
-
-    #[test]
-    fn test_encode_null_array() {
-        let null_array: RespFrame = RespNullArray::new().into();
-        assert_eq!(null_array.encode(), b"*-1\r\n");
     }
 
     #[test]
@@ -203,7 +184,10 @@ mod tests {
             SimpleString::new("hello"),
             SimpleString::new("world").into(),
         );
-        map.insert(SimpleString::new("foo"), BulkString::new("bar").into());
+        map.insert(
+            SimpleString::new("foo"),
+            BulkString::new(Some("bar")).into(),
+        );
         let frame: RespFrame = map.into();
         assert_eq!(
             frame.encode(),
@@ -215,7 +199,7 @@ mod tests {
     fn test_encode_set() {
         let frame: RespFrame = RespSet::new(vec![
             10.into(),
-            BulkString::new("hello").into(),
+            BulkString::new(Some("hello")).into(),
             SimpleString::new("world").into(),
         ])
         .into();
