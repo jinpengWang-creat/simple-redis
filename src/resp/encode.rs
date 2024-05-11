@@ -24,13 +24,13 @@ impl RespEncode for i64 {
 
 impl RespEncode for BulkString {
     fn encode(self) -> Vec<u8> {
-        let bulk = self.0.and_then(|bulk_string| {
+        let bulk = self.0.map(|bulk_string| {
             let len = bulk_string.len();
             let mut result = Vec::with_capacity(len + DEFAULT_FRAME_SIZE);
             result.extend_from_slice(format!("${}\r\n", len).as_bytes());
             result.extend_from_slice(&bulk_string);
             result.extend_from_slice(b"\r\n");
-            Some(result)
+            result
         });
         bulk.unwrap_or(b"$-1\r\n".to_vec())
     }
@@ -38,14 +38,14 @@ impl RespEncode for BulkString {
 
 impl RespEncode for RespArray {
     fn encode(self) -> Vec<u8> {
-        let array = self.0.and_then(|array| {
+        let array = self.0.map(|array| {
             let len = array.len();
             let mut result = Vec::with_capacity(len * DEFAULT_FRAME_SIZE);
             result.extend_from_slice(format!("*{}\r\n", len).as_bytes());
             array
                 .into_iter()
                 .for_each(|frame| result.extend_from_slice(&frame.encode()));
-            Some(result)
+            result
         });
         array.unwrap_or(b"*-1\r\n".to_vec())
     }

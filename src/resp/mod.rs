@@ -17,6 +17,8 @@ pub trait RespEncode {
 
 pub trait RespDecode: Sized {
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError>;
+
+    fn expect_length(buf: &mut BytesMut) -> Option<usize>;
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -93,7 +95,7 @@ pub struct BulkString(Option<Vec<u8>>);
 
 impl BulkString {
     pub fn new(vec: Option<impl Into<Vec<u8>>>) -> Self {
-        BulkString(vec.and_then(|v| Some(v.into())))
+        BulkString(vec.map(|v| v.into()))
     }
 }
 
@@ -110,7 +112,7 @@ pub struct RespArray(Option<Vec<RespFrame>>);
 
 impl RespArray {
     pub fn new(vec: Option<impl Into<Vec<RespFrame>>>) -> Self {
-        RespArray(vec.and_then(|v| Some(v.into())))
+        RespArray(vec.map(|v| v.into()))
     }
 }
 
