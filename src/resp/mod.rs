@@ -9,6 +9,9 @@ use std::{
 use bytes::BytesMut;
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
+const CRLF: &[u8] = b"\r\n";
+const CRLF_LEN: usize = CRLF.len();
+const AGGREGATE_FRAME_TYPE: [&[u8]; 4] = [b"$", b"*", b"%", b"~"];
 
 #[enum_dispatch]
 pub trait RespEncode {
@@ -16,9 +19,14 @@ pub trait RespEncode {
 }
 
 pub trait RespDecode: Sized {
+    const PREFIX: &'static str;
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError>;
 
-    fn expect_length(buf: &mut BytesMut) -> Option<usize>;
+    fn expect_length(buf: &[u8]) -> Result<usize, RespError> {
+        find_crlf(buf, 1)
+            .map(|end| end + CRLF_LEN)
+            .ok_or(RespError::NotComplete)
+    }
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -210,4 +218,17 @@ impl Deref for RespSet {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+fn find_crlf(buf: &[u8], nth_crlf: usize) -> Option<usize> {
+    let mut cur_times = 0;
+    for i in 0..buf.len() - 1 {
+        if buf[i] == b'\r' && buf[i + 1] == b'\n' {
+            cur_times += 1;
+        }
+        if cur_times == nth_crlf {
+            return Some(i);
+        }
+    }
+    None
 }
