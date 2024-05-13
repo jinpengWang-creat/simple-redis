@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bytes = "1.6.0"
 enum_dispatch = "0.3.13"
+lazy_static = "1.4.0"
 thiserror = "1.0.60"
 tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "net", "io-util", "macros"] }
 tracing = "0.1.40"

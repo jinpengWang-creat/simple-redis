@@ -266,6 +266,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "enum_dispatch",
+ "lazy_static",
  "thiserror",
  "tokio",
  "tracing",

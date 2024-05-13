@@ -1,6 +1,6 @@
 mod hmap;
 mod map;
-use crate::{RespError, RespFrame};
+use crate::{BulkString, RespArray, RespError, RespFrame};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -76,4 +76,41 @@ impl TryFrom<RespFrame> for Command {
     fn try_from(_value: RespFrame) -> Result<Self, Self::Error> {
         todo!()
     }
+}
+
+fn validate_command(
+    resp_array: &RespArray,
+    cmds: &[&'static str],
+    n_args: usize,
+) -> Result<(), CommandError> {
+    let frames = resp_array.as_deref().ok_or(CommandError::InvalidCommand(
+        "This array is null array".to_string(),
+    ))?;
+    if frames.len() != cmds.len() + n_args {
+        return Err(CommandError::InvalidArgument(format!(
+            "{} command must have exactly {} arguments",
+            cmds.join(" "),
+            n_args
+        )));
+    }
+
+    for (cmd, frame) in cmds.iter().zip(frames.iter()) {
+        match frame {
+            RespFrame::BulkString(BulkString(Some(frame_cmd))) => {
+                if frame_cmd.to_ascii_lowercase() != cmd.as_bytes() {
+                    return Err(CommandError::InvalidCommand(format!(
+                        "Invalid command: expected {}, got {}",
+                        cmd,
+                        String::from_utf8_lossy(frame_cmd)
+                    )));
+                }
+            }
+            _ => {
+                return Err(CommandError::InvalidCommand(
+                    "Command must have a BulkString as the first argument".to_string(),
+                ))
+            }
+        }
+    }
+    Ok(())
 }

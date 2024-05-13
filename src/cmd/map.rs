@@ -7,21 +7,24 @@ impl TryFrom<RespArray> for Get {
     type Error = CommandError;
 
     fn try_from(value: RespArray) -> Result<Self, Self::Error> {
-        let frames = value
-            .0
-            .ok_or(CommandError::InvalidCommand("None".to_string()))?;
+        // test if the array is null array
+        let frames = value.0.ok_or(CommandError::InvalidCommand(
+            "This array is null array".to_string(),
+        ))?;
 
-        if frames.len() != 1 {
-            return Err(CommandError::InvalidCommand(format!("{:?}", frames)));
+        if frames.len() != 2 {
+            return Err(CommandError::InvalidArgument(
+                "GET command must have exactly 1 argument!".to_string(),
+            ));
         }
-        let frame = frames.into_iter().next().expect("unexpected error!");
+        let mut frame_iter = frames.into_iter();
 
-        let bulk_string = match frame {
-            RespFrame::BulkString(bulk_string) => bulk_string,
+        let cmd = match frame_iter.next() {
+            Some(RespFrame::BulkString(cmd)) => cmd,
             frame => return Err(CommandError::InvalidCommand(format!("{:?}", frame))),
         };
 
-        let content = bulk_string
+        let content = cmd
             .0
             .ok_or(CommandError::InvalidCommand("None".to_string()))?;
         Get::try_from(content)
