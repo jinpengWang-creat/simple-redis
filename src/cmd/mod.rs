@@ -30,6 +30,22 @@ pub struct Get {
     key: String,
 }
 
+impl Get {
+    pub fn new(key: String) -> Self {
+        Get { key }
+    }
+}
+
+impl TryFrom<Vec<u8>> for Get {
+    type Error = CommandError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(Get::new(String::from_utf8(value).map_err(|e| {
+            CommandError::InvalidArgument(format!("{:?}", e))
+        })?))
+    }
+}
+
 #[derive(Debug)]
 pub struct Set {
     key: String,

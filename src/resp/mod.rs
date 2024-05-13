@@ -99,7 +99,7 @@ impl Deref for SimpleError {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct BulkString(Option<Vec<u8>>);
+pub struct BulkString(pub(crate) Option<Vec<u8>>);
 
 impl BulkString {
     pub fn new(vec: Option<impl Into<Vec<u8>>>) -> Self {
@@ -116,7 +116,7 @@ impl Deref for BulkString {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RespArray(Option<Vec<RespFrame>>);
+pub struct RespArray(pub(crate) Option<Vec<RespFrame>>);
 
 impl RespArray {
     pub fn new(vec: Option<impl Into<Vec<RespFrame>>>) -> Self {
