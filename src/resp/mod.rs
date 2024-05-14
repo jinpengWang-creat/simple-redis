@@ -49,7 +49,7 @@ pub enum RespError {
     NotComplete,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[enum_dispatch(RespEncode)]
 pub enum RespFrame {
     SimpleString(SimpleString),
@@ -64,7 +64,7 @@ pub enum RespFrame {
     Set(RespSet),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub struct SimpleString(String);
 
 impl SimpleString {
@@ -81,7 +81,7 @@ impl Deref for SimpleString {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SimpleError(String);
 
 impl SimpleError {
@@ -98,7 +98,7 @@ impl Deref for SimpleError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BulkString(pub(crate) Option<Vec<u8>>);
 
 impl BulkString {
@@ -115,7 +115,7 @@ impl Deref for BulkString {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespArray(pub(crate) Option<Vec<RespFrame>>);
 
 impl RespArray {
@@ -132,7 +132,7 @@ impl Deref for RespArray {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespNull;
 
 impl RespNull {
@@ -146,7 +146,7 @@ impl Default for RespNull {
         Self::new()
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespNullArray;
 
 impl RespNullArray {
@@ -161,7 +161,7 @@ impl Default for RespNullArray {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespNullBulkString;
 
 impl RespNullBulkString {
@@ -175,7 +175,7 @@ impl Default for RespNullBulkString {
         Self::new()
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespMap(BTreeMap<SimpleString, RespFrame>);
 
 impl RespMap {
@@ -203,7 +203,7 @@ impl DerefMut for RespMap {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RespSet(Vec<RespFrame>);
 
 impl RespSet {
