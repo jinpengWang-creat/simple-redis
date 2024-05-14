@@ -1,9 +1,8 @@
-use dashmap::DashMap;
-
-use crate::{RespFrame, RespMap, RespNull, SimpleString};
+use crate::RespFrame;
 
 use super::{
     extract_frame, extract_string, validate_nums_of_argument, CommandError, CommandExecutor,
+    RET_NULL, RET_OK,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,15 +13,25 @@ pub struct HGet {
 
 impl CommandExecutor for HGet {
     fn execute(self, backend: &crate::Backend) -> RespFrame {
-        match backend.hmap.get(&self.key) {
-            Some(field_map) => match field_map.get(&self.field) {
-                Some(val) => val.value().clone(),
-                None => RespFrame::Null(RespNull::new()),
-            },
-            None => RespFrame::Null(RespNull::new()),
-        }
+        backend
+            .hget(&self.key, &self.field)
+            .unwrap_or(RET_NULL.clone())
     }
 }
+
+impl CommandExecutor for HSet {
+    fn execute(self, backend: &crate::Backend) -> RespFrame {
+        backend.hset(self.key, self.field, self.value);
+        RET_OK.clone()
+    }
+}
+
+impl CommandExecutor for HGetAll {
+    fn execute(self, backend: &crate::Backend) -> RespFrame {
+        backend.hgetall(&self.key).unwrap_or(RET_NULL.clone())
+    }
+}
+
 impl TryFrom<Vec<RespFrame>> for HGet {
     type Error = CommandError;
 
@@ -63,18 +72,6 @@ impl TryFrom<Vec<RespFrame>> for HSet {
     }
 }
 
-impl CommandExecutor for HSet {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        backend
-            .hmap
-            .entry(self.key)
-            .or_insert(DashMap::new())
-            .entry(self.field)
-            .or_insert(self.value);
-        RespFrame::SimpleString(SimpleString::new("OK".to_string()))
-    }
-}
-
 impl HSet {
     pub fn new(key: String, field: String, value: RespFrame) -> Self {
         HSet { key, field, value }
@@ -98,24 +95,6 @@ impl TryFrom<Vec<RespFrame>> for HGetAll {
 impl HGetAll {
     pub fn new(key: String) -> Self {
         HGetAll { key }
-    }
-}
-
-impl CommandExecutor for HGetAll {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        match backend.hmap.get(&self.key) {
-            Some(field_map) => {
-                let mut map = RespMap::new();
-                field_map.iter().for_each(|entry| {
-                    map.insert(
-                        SimpleString::new(entry.key().clone()),
-                        entry.value().clone(),
-                    );
-                });
-                RespFrame::Map(map)
-            }
-            None => RespFrame::Null(RespNull::new()),
-        }
     }
 }
 

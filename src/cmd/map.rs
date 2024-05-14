@@ -1,19 +1,28 @@
-use crate::{cmd::CommandError, RespFrame, RespNull, SimpleString};
+use crate::{cmd::CommandError, RespFrame};
 
-use super::{extract_frame, extract_string, validate_nums_of_argument, CommandExecutor};
+use super::{
+    extract_frame, extract_string, validate_nums_of_argument, CommandExecutor, RET_NULL, RET_OK,
+};
+
+impl CommandExecutor for Get {
+    fn execute(self, backend: &crate::Backend) -> RespFrame {
+        match backend.get(&self.key) {
+            Some(val) => val,
+            None => RET_NULL.clone(),
+        }
+    }
+}
+
+impl CommandExecutor for Set {
+    fn execute(self, backend: &crate::Backend) -> RespFrame {
+        backend.set(self.key, self.value);
+        RET_OK.clone()
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Get {
     key: String,
-}
-
-impl CommandExecutor for Get {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        match backend.map.get(&self.key) {
-            Some(val) => val.value().clone(),
-            None => RespFrame::Null(RespNull::new()),
-        }
-    }
 }
 
 impl TryFrom<Vec<RespFrame>> for Get {
@@ -53,12 +62,6 @@ pub struct Set {
     value: RespFrame,
 }
 
-impl CommandExecutor for Set {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        backend.map.entry(self.key).or_insert(self.value);
-        RespFrame::SimpleString(SimpleString::new(String::from("OK")))
-    }
-}
 impl TryFrom<Vec<RespFrame>> for Set {
     type Error = CommandError;
 
