@@ -44,6 +44,20 @@ pub enum Command {
     HGetAll(HGetAll),
 }
 
+impl TryFrom<RespFrame> for Command {
+    type Error = CommandError;
+
+    fn try_from(value: RespFrame) -> Result<Self, Self::Error> {
+        match value {
+            RespFrame::Array(array) => Ok(array.try_into()?),
+            _ => Err(CommandError::InvalidCommand(format!(
+                "unsupported frame: {:?}",
+                value
+            ))),
+        }
+    }
+}
+
 impl TryFrom<RespArray> for Command {
     type Error = CommandError;
 

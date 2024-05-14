@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use bytes::BytesMut;
+use tracing::info;
 
 use crate::{
     BulkString, RespArray, RespDecode, RespEncode, RespError, RespFrame, RespMap, RespNull,
@@ -13,6 +14,7 @@ impl RespDecode for RespFrame {
     const PREFIX: &'static str = "";
     fn decode(buf: &mut BytesMut) -> Result<Self, RespError> {
         let mut iter = buf.iter().peekable();
+        info!("if iter peek: {:?}", iter.peek());
         match iter.peek() {
             Some(b'+') => Ok(SimpleString::decode(buf)?.into()),
             Some(b'-') => Ok(SimpleError::decode(buf)?.into()),
