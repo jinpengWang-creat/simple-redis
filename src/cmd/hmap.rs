@@ -2,7 +2,7 @@ use crate::RespFrame;
 
 use super::{
     extract_frame, extract_string, validate_nums_of_argument, CommandError, CommandExecutor,
-    RET_NULL, RET_OK,
+    RET_NULL,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,8 +21,7 @@ impl CommandExecutor for HGet {
 
 impl CommandExecutor for HSet {
     fn execute(self, backend: &crate::Backend) -> RespFrame {
-        backend.hset(self.key, self.field, self.value);
-        RET_OK.clone()
+        backend.hset(self.key, self.field, self.value)
     }
 }
 

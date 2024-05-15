@@ -2,7 +2,7 @@ mod hmap;
 mod map;
 use std::string::FromUtf8Error;
 
-use crate::{Backend, RespNull, SimpleError, SimpleString};
+use crate::{Backend, SimpleString};
 use crate::{BulkString, RespArray, RespError, RespFrame};
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
@@ -12,8 +12,7 @@ use self::map::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref DB: Backend = Backend::new();
-    static ref RET_NULL: RespFrame = RespFrame::Null(RespNull::new());
+    static ref RET_NULL: RespFrame = RespFrame::BulkString(BulkString::new(None::<Vec<_>>));
     static ref RET_OK: RespFrame = RespFrame::SimpleString(SimpleString::new("OK"));
 }
 
@@ -42,6 +41,7 @@ pub enum Command {
     HGet(HGet),
     HSet(HSet),
     HGetAll(HGetAll),
+    Unrecognized(Unrecognized),
 }
 
 impl TryFrom<RespFrame> for Command {
@@ -66,15 +66,12 @@ impl TryFrom<RespArray> for Command {
         let (cmd, frames) = extract_cmd_and_argument(value);
         println!("{:?}", frames);
         match cmd.as_slice() {
-            b"get" => Ok(Command::Get(Get::try_from(frames)?)),
-            b"set" => Ok(Command::Set(Set::try_from(frames)?)),
-            b"hget" => Ok(Command::HGet(HGet::try_from(frames)?)),
-            b"hset" => Ok(Command::HSet(HSet::try_from(frames)?)),
-            b"hgetall" => Ok(Command::HGetAll(HGetAll::try_from(frames)?)),
-            _ => Err(CommandError::InvalidCommand(format!(
-                "unsupported command: {}",
-                String::from_utf8(cmd)?
-            ))),
+            b"get" => Ok(Get::try_from(frames)?.into()),
+            b"set" => Ok(Set::try_from(frames)?.into()),
+            b"hget" => Ok(HGet::try_from(frames)?.into()),
+            b"hset" => Ok(HSet::try_from(frames)?.into()),
+            b"hgetall" => Ok(HGetAll::try_from(frames)?.into()),
+            _ => Ok(Unrecognized.into()),
         }
     }
 }
@@ -150,19 +147,19 @@ fn validate_nums_of_argument(
     Ok(())
 }
 
-pub fn cmd(array: RespArray) -> RespFrame {
-    let cmd = match Command::try_from(array) {
-        Ok(cmd) => cmd,
-        Err(e) => return RespFrame::SimpleError(SimpleError::new(format!("{:?}", e))),
-    };
-    cmd.execute(&DB)
+#[derive(Debug, PartialEq)]
+pub struct Unrecognized;
+impl CommandExecutor for Unrecognized {
+    fn execute(self, _backend: &Backend) -> RespFrame {
+        RET_OK.clone()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use bytes::BytesMut;
 
-    use crate::{RespDecode, RespMap, SimpleString};
+    use crate::{RespDecode, SimpleString};
 
     use super::*;
 
@@ -192,7 +189,7 @@ mod tests {
         let array = RespArray::decode(&mut buf).expect("error in decode resp array");
         let cmd = Command::try_from(array).unwrap();
         let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::SimpleString(SimpleString::new("OK")));
+        assert_eq!(ret, RespFrame::Integer(1));
 
         let mut buf =
             BytesMut::from(b"*3\r\n$4\r\nhget\r\n$3\r\nmap\r\n$5\r\nhello\r\n".as_slice());
@@ -211,7 +208,7 @@ mod tests {
         let array = RespArray::decode(&mut buf).expect("error in decode resp array");
         let cmd = Command::try_from(array).unwrap();
         let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::SimpleString(SimpleString::new("OK")));
+        assert_eq!(ret, RespFrame::Integer(1));
 
         let mut buf = BytesMut::from(
             b"*4\r\n$4\r\nhset\r\n$3\r\nmap\r\n$4\r\nname\r\n$3\r\ntom\r\n".as_slice(),
@@ -219,21 +216,19 @@ mod tests {
         let array = RespArray::decode(&mut buf).expect("error in decode resp array");
         let cmd = Command::try_from(array).unwrap();
         let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::SimpleString(SimpleString::new("OK")));
+        assert_eq!(ret, RespFrame::Integer(1));
 
         let mut buf = BytesMut::from(b"*2\r\n$7\r\nhgetall\r\n$3\r\nmap\r\n".as_slice());
         let array = RespArray::decode(&mut buf).expect("error in decode resp array");
         let get = Command::try_from(array).unwrap();
         let ret = get.execute(&backend);
-        let mut map = RespMap::new();
-        map.insert(
-            SimpleString::new("hello"),
+        let vec = vec![
+            SimpleString::new("hello").into(),
             RespFrame::BulkString(BulkString::new(Some("world"))),
-        );
-        map.insert(
-            SimpleString::new("name"),
+            SimpleString::new("name").into(),
             RespFrame::BulkString(BulkString::new(Some("tom"))),
-        );
-        assert_eq!(ret, RespFrame::Map(map));
+        ];
+
+        assert_eq!(ret, RespFrame::Array(RespArray::new(Some(vec))));
     }
 }

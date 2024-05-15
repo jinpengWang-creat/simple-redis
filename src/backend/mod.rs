@@ -1,8 +1,8 @@
-use std::{ops::Deref, sync::Arc};
+use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 
 use dashmap::DashMap;
 
-use crate::{RespFrame, RespMap, SimpleString};
+use crate::{RespArray, RespFrame, SimpleString};
 
 #[derive(Debug, Clone)]
 pub struct Backend(BackendInner);
@@ -57,21 +57,30 @@ impl Backend {
             .and_then(|v| v.get(field).map(|v| v.value().clone()))
     }
 
-    pub fn hset(&self, key: String, field: String, value: RespFrame) {
+    pub fn hset(&self, key: String, field: String, value: RespFrame) -> RespFrame {
         let hmap = self.hmap.entry(key).or_default();
-        hmap.insert(field, value);
+        let ret = hmap.insert(field, value);
+        match ret {
+            Some(_) => RespFrame::Integer(0),
+            None => RespFrame::Integer(1),
+        }
     }
 
     pub fn hgetall(&self, key: &str) -> Option<RespFrame> {
         self.hmap.get(key).map(|field_map| {
-            let mut map = RespMap::new();
+            let mut map = BTreeMap::new();
             field_map.iter().for_each(|entry| {
                 map.insert(
                     SimpleString::new(entry.key().clone()),
                     entry.value().clone(),
                 );
             });
-            RespFrame::Map(map)
+            let mut vec = vec![];
+            map.into_iter().for_each(|(key, value)| {
+                vec.push(key.into());
+                vec.push(value);
+            });
+            RespFrame::Array(RespArray::new(Some(vec)))
         })
     }
 }

@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::{
     cmd::{Command, CommandExecutor},
-    Backend, RespDecode, RespEncode, RespError, RespFrame,
+    Backend, RespDecode, RespEncode, RespError, RespFrame, SimpleError,
 };
 
 #[derive(Debug)]
@@ -74,7 +74,9 @@ pub async fn stream_handler(stream: TcpStream, backend: Backend) -> Result<()> {
 }
 
 async fn redis_request_handler(request: RedisRequest) -> Result<RedisResponse> {
-    let cmd: Command = request.frame.try_into()?;
-    let frame = cmd.execute(&request.backend);
+    let frame = match TryInto::<Command>::try_into(request.frame) {
+        Ok(cmd) => cmd.execute(&request.backend),
+        Err(e) => RespFrame::SimpleError(SimpleError::new(e.to_string())),
+    };
     Ok(RedisResponse { frame })
 }
