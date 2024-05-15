@@ -2,8 +2,12 @@ mod hmap;
 mod map;
 use std::string::FromUtf8Error;
 
-use crate::{Backend, SimpleString};
-use crate::{BulkString, RespArray, RespError, RespFrame};
+use crate::Backend;
+use crate::BulkString;
+use crate::RespArray;
+use crate::RespError;
+use crate::RespFrame;
+use crate::SimpleString;
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
 
@@ -12,7 +16,7 @@ use self::map::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref RET_NULL: RespFrame = RespFrame::BulkString(BulkString::new(None::<Vec<_>>));
+    static ref RET_NULL: RespFrame = RespFrame::Array(RespArray::new(None::<Vec<_>>));
     static ref RET_OK: RespFrame = RespFrame::SimpleString(SimpleString::new("OK"));
 }
 
@@ -159,7 +163,7 @@ impl CommandExecutor for Unrecognized {
 mod tests {
     use bytes::BytesMut;
 
-    use crate::{RespDecode, SimpleString};
+    use crate::RespDecode;
 
     use super::*;
 

@@ -1,17 +1,28 @@
-mod decode;
-mod encode;
-
-use std::{
-    collections::BTreeMap,
-    ops::{Deref, DerefMut},
-};
+mod array;
+mod bool;
+mod bulk_string;
+mod double;
+mod frame;
+mod integer;
+mod map;
+mod null;
+mod set;
+mod simple_error;
+mod simple_string;
 
 use bytes::BytesMut;
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
+
+pub use self::{
+    array::RespArray, bulk_string::BulkString, frame::RespFrame, map::RespMap, null::RespNull,
+    set::RespSet, simple_error::SimpleError, simple_string::SimpleString,
+};
+
 const CRLF: &[u8] = b"\r\n";
 const CRLF_LEN: usize = CRLF.len();
 const AGGREGATE_FRAME_TYPE: [&[u8]; 4] = [b"$", b"*", b"%", b"~"];
+const DEFAULT_FRAME_SIZE: usize = 16;
 
 #[enum_dispatch]
 pub trait RespEncode {
@@ -49,177 +60,6 @@ pub enum RespError {
     NotComplete,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-#[enum_dispatch(RespEncode)]
-pub enum RespFrame {
-    SimpleString(SimpleString),
-    SimpleError(SimpleError),
-    Integer(i64),
-    BulkString(BulkString),
-    Array(RespArray),
-    Null(RespNull),
-    Boolean(bool),
-    Double(f64),
-    Map(RespMap),
-    Set(RespSet),
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-pub struct SimpleString(String);
-
-impl SimpleString {
-    pub fn new(str: impl Into<String>) -> Self {
-        SimpleString(str.into())
-    }
-}
-
-impl Deref for SimpleString {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct SimpleError(String);
-
-impl SimpleError {
-    pub fn new(str: impl Into<String>) -> Self {
-        SimpleError(str.into())
-    }
-}
-
-impl Deref for SimpleError {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct BulkString(pub(crate) Option<Vec<u8>>);
-
-impl BulkString {
-    pub fn new(vec: Option<impl Into<Vec<u8>>>) -> Self {
-        BulkString(vec.map(|v| v.into()))
-    }
-}
-
-impl Deref for BulkString {
-    type Target = Option<Vec<u8>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespArray(pub(crate) Option<Vec<RespFrame>>);
-
-impl RespArray {
-    pub fn new(vec: Option<impl Into<Vec<RespFrame>>>) -> Self {
-        RespArray(vec.map(|v| v.into()))
-    }
-}
-
-impl Deref for RespArray {
-    type Target = Option<Vec<RespFrame>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespNull;
-
-impl RespNull {
-    pub fn new() -> Self {
-        RespNull
-    }
-}
-
-impl Default for RespNull {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespNullArray;
-
-impl RespNullArray {
-    pub fn new() -> Self {
-        RespNullArray
-    }
-}
-
-impl Default for RespNullArray {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespNullBulkString;
-
-impl RespNullBulkString {
-    pub fn new() -> Self {
-        RespNullBulkString
-    }
-}
-
-impl Default for RespNullBulkString {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespMap(BTreeMap<SimpleString, RespFrame>);
-
-impl RespMap {
-    pub fn new() -> Self {
-        RespMap(BTreeMap::new())
-    }
-}
-
-impl Deref for RespMap {
-    type Target = BTreeMap<SimpleString, RespFrame>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Default for RespMap {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl DerefMut for RespMap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RespSet(Vec<RespFrame>);
-
-impl RespSet {
-    pub fn new(vec: impl Into<Vec<RespFrame>>) -> Self {
-        RespSet(vec.into())
-    }
-}
-
-impl Deref for RespSet {
-    type Target = Vec<RespFrame>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 fn find_crlf(buf: &[u8], nth_crlf: usize) -> Option<usize> {
     let mut cur_times = 0;
     for i in 0..buf.len() - 1 {
@@ -231,4 +71,21 @@ fn find_crlf(buf: &[u8], nth_crlf: usize) -> Option<usize> {
         }
     }
     None
+}
+
+fn parse_aggregate_length(buf: &[u8], prefix: &[u8]) -> Result<(usize, isize), RespError> {
+    if buf.len() < 3 {
+        return Err(RespError::NotComplete);
+    }
+    if !AGGREGATE_FRAME_TYPE.contains(&prefix) {
+        return Err(RespError::InvalidFrameType(format!(
+            "frame type {} is not a aggregate type",
+            String::from_utf8_lossy(prefix)
+        )));
+    }
+    let end = find_crlf(buf, 1).ok_or(RespError::NotComplete)?;
+    Ok((
+        end,
+        String::from_utf8((&buf[prefix.len()..end]).into())?.parse()?,
+    ))
 }
