@@ -16,7 +16,8 @@ use self::map::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref RET_NULL: RespFrame = RespFrame::Array(RespArray::new(None::<Vec<_>>));
+    static ref RET_NULL: RespFrame = RespFrame::BulkString(BulkString::new(None::<Vec<_>>));
+    static ref RET_NULL_ARRAY: RespFrame = RespFrame::Array(RespArray::new(Some([])));
     static ref RET_OK: RespFrame = RespFrame::SimpleString(SimpleString::new("OK"));
 }
 

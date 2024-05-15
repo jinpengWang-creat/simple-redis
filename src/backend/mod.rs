@@ -75,7 +75,7 @@ impl Backend {
                     entry.value().clone(),
                 );
             });
-            let mut vec = vec![];
+            let mut vec = Vec::with_capacity(map.len() * 2);
             map.into_iter().for_each(|(key, value)| {
                 vec.push(key.into());
                 vec.push(value);
