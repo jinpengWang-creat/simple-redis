@@ -57,13 +57,15 @@ impl Backend {
             .and_then(|v| v.get(field).map(|v| v.value().clone()))
     }
 
-    pub fn hset(&self, key: String, field: String, value: RespFrame) -> RespFrame {
+    pub fn hmset(&self, key: String, fields: Vec<String>, values: Vec<RespFrame>) -> RespFrame {
         let hmap = self.hmap.entry(key).or_default();
-        let ret = hmap.insert(field, value);
-        match ret {
-            Some(_) => RespFrame::Integer(0),
-            None => RespFrame::Integer(1),
-        }
+        let success_count = fields
+            .into_iter()
+            .zip(values.into_iter())
+            .map(|(field, value)| hmap.insert(field, value))
+            .filter(Option::is_none)
+            .count();
+        RespFrame::Integer(success_count as i64)
     }
 
     pub fn hgetall(&self, key: &str) -> Option<RespFrame> {

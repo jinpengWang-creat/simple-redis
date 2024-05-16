@@ -7,13 +7,13 @@ use super::{
 #[derive(Debug, PartialEq)]
 pub struct HSet {
     key: String,
-    field: String,
-    value: RespFrame,
+    fields: Vec<String>,
+    values: Vec<RespFrame>,
 }
 
 impl CommandExecutor for HSet {
     fn execute(self, backend: &crate::Backend) -> RespFrame {
-        backend.hset(self.key, self.field, self.value)
+        backend.hmset(self.key, self.fields, self.values)
     }
 }
 
@@ -21,19 +21,31 @@ impl TryFrom<Vec<RespFrame>> for HSet {
     type Error = CommandError;
 
     fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
-        validate_nums_of_argument(&value, "hset", 3)?;
-
+        let mut expect_len = value.len() - 1;
+        if expect_len % 2 == 1 {
+            expect_len += 1;
+        }
+        validate_nums_of_argument(&value, "hset", expect_len + 1)?;
         let mut frame_iter = value.into_iter();
+        let mut fields = Vec::with_capacity(expect_len / 2);
+        let mut values = Vec::with_capacity(expect_len / 2);
         let key = extract_string(frame_iter.next())?;
-        let field = extract_string(frame_iter.next())?;
-        let frame_value = extract_frame(frame_iter.next())?;
-        Ok(HSet::new(key, field, frame_value))
+        for _ in 0..expect_len / 2 {
+            fields.push(extract_string(frame_iter.next())?);
+            values.push(extract_frame(frame_iter.next())?);
+        }
+
+        Ok(HSet::new(key, fields, values))
     }
 }
 
 impl HSet {
-    pub fn new(key: String, field: String, value: RespFrame) -> Self {
-        HSet { key, field, value }
+    pub fn new(key: String, fields: Vec<String>, values: Vec<RespFrame>) -> Self {
+        HSet {
+            key,
+            fields,
+            values,
+        }
     }
 }
 
@@ -56,8 +68,8 @@ mod tests {
             hset,
             Command::HSet(HSet::new(
                 "map".to_string(),
-                "hello".to_string(),
-                RespFrame::BulkString(BulkString::new(Some(b"world")))
+                vec!["hello".to_string()],
+                vec![RespFrame::BulkString(BulkString::new(Some(b"world")))]
             ))
         )
     }
