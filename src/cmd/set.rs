@@ -21,7 +21,7 @@ impl TryFrom<Vec<RespFrame>> for Set {
     type Error = CommandError;
 
     fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
-        validate_nums_of_argument(&value, "set", 2)?;
+        validate_nums_of_argument(&value, "set", 2, 2)?;
         let mut frame_iter = value.into_iter();
         let key = extract_string(frame_iter.next())?;
         let frame_value = extract_frame(frame_iter.next())?;

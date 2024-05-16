@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 
 use dashmap::DashMap;
+use tracing::info;
 
 use crate::{BulkString, RespArray, RespFrame};
 
@@ -54,17 +55,30 @@ impl Backend {
     pub fn hget(&self, key: &str, field: &str) -> Option<RespFrame> {
         self.hmap
             .get(key)
-            .and_then(|v| v.get(field).map(|v| v.value().clone()))
+            .and_then(|field_map| field_map.get(field).map(|v| v.value().clone()))
+    }
+
+    pub fn hmget(&self, key: &str, fields: &[String]) -> Option<Vec<Option<RespFrame>>> {
+        self.hmap.get(key).map(|field_map| {
+            fields
+                .iter()
+                .map(|field| field_map.get(field).map(|v| v.value().clone()))
+                .collect()
+        })
     }
 
     pub fn hmset(&self, key: String, fields: Vec<String>, values: Vec<RespFrame>) -> RespFrame {
         let hmap = self.hmap.entry(key).or_default();
         let success_count = fields
             .into_iter()
-            .zip(values.into_iter())
-            .map(|(field, value)| hmap.insert(field, value))
+            .zip(values)
+            .map(|(field, value)| {
+                info!("insert key:{:?}, value:{:?}", field, value);
+                hmap.insert(field, value)
+            })
             .filter(Option::is_none)
             .count();
+        info!("success count: {:?}", success_count);
         RespFrame::Integer(success_count as i64)
     }
 

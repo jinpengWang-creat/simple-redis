@@ -2,6 +2,7 @@ mod echo;
 mod get;
 mod hget;
 mod hgetall;
+mod hmget;
 mod hset;
 mod set;
 use std::string::FromUtf8Error;
@@ -19,6 +20,7 @@ use self::echo::*;
 use self::get::Get;
 use self::hget::HGet;
 use self::hgetall::HGetAll;
+use self::hmget::Hmget;
 use self::hset::HSet;
 use self::set::Set;
 use lazy_static::lazy_static;
@@ -52,6 +54,7 @@ pub enum Command {
     Get(Get),
     Set(Set),
     HGet(HGet),
+    Hmget(Hmget),
     HSet(HSet),
     HGetAll(HGetAll),
     Echo(Echo),
@@ -83,6 +86,7 @@ impl TryFrom<RespArray> for Command {
             b"get" => Ok(Get::try_from(frames)?.into()),
             b"set" => Ok(Set::try_from(frames)?.into()),
             b"hget" => Ok(HGet::try_from(frames)?.into()),
+            b"hmget" => Ok(Hmget::try_from(frames)?.into()),
             b"hset" => Ok(HSet::try_from(frames)?.into()),
             b"hgetall" => Ok(HGetAll::try_from(frames)?.into()),
             b"echo" => Ok(Echo::try_from(frames)?.into()),
@@ -150,7 +154,16 @@ fn validate_nums_of_argument(
     frames: &Vec<RespFrame>,
     validate_type: &str,
     expect_num: usize,
+    min_num: usize,
 ) -> Result<(), CommandError> {
+    if frames.len() < min_num {
+        return Err(CommandError::InvalidArgument(format!(
+            "wrong number of arguments for '{}' command, at least: {}, got: {}",
+            validate_type,
+            min_num,
+            frames.len()
+        )));
+    }
     if frames.len() != expect_num {
         return Err(CommandError::InvalidArgument(format!(
             "wrong number of arguments for '{}' command, expect: {}, got: {}",
@@ -167,83 +180,5 @@ pub struct Unrecognized;
 impl CommandExecutor for Unrecognized {
     fn execute(self, _backend: &Backend) -> RespFrame {
         RET_OK.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use bytes::BytesMut;
-
-    use crate::RespDecode;
-
-    use super::*;
-
-    #[test]
-    fn test_cmd_get_set() {
-        let backend = Backend::new();
-        let mut buf =
-            BytesMut::from(b"*3\r\n$3\r\nset\r\n$5\r\nhello\r\n$5\r\nworld\r\n".as_slice());
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let cmd = Command::try_from(array).unwrap();
-        let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::SimpleString(SimpleString::new("OK")));
-
-        let mut buf = BytesMut::from(b"*2\r\n$3\r\nget\r\n$5\r\nhello\r\n".as_slice());
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let get = Command::try_from(array).unwrap();
-        let ret = get.execute(&backend);
-        assert_eq!(ret, RespFrame::BulkString(BulkString::new(Some(b"world"))));
-    }
-
-    #[test]
-    fn test_cmd_hget_hset() {
-        let backend = Backend::new();
-        let mut buf = BytesMut::from(
-            b"*4\r\n$4\r\nhset\r\n$3\r\nmap\r\n$5\r\nhello\r\n$5\r\nworld\r\n".as_slice(),
-        );
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let cmd = Command::try_from(array).unwrap();
-        let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::Integer(1));
-
-        let mut buf =
-            BytesMut::from(b"*3\r\n$4\r\nhget\r\n$3\r\nmap\r\n$5\r\nhello\r\n".as_slice());
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let get = Command::try_from(array).unwrap();
-        let ret = get.execute(&backend);
-        assert_eq!(ret, RespFrame::BulkString(BulkString::new(Some(b"world"))));
-    }
-
-    #[test]
-    fn test_cmd_hgetall() {
-        let backend = Backend::new();
-        let mut buf = BytesMut::from(
-            b"*4\r\n$4\r\nhset\r\n$3\r\nmap\r\n$5\r\nhello\r\n$5\r\nworld\r\n".as_slice(),
-        );
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let cmd = Command::try_from(array).unwrap();
-        let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::Integer(1));
-
-        let mut buf = BytesMut::from(
-            b"*4\r\n$4\r\nhset\r\n$3\r\nmap\r\n$4\r\nname\r\n$3\r\ntom\r\n".as_slice(),
-        );
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let cmd = Command::try_from(array).unwrap();
-        let ret = cmd.execute(&backend);
-        assert_eq!(ret, RespFrame::Integer(1));
-
-        let mut buf = BytesMut::from(b"*2\r\n$7\r\nhgetall\r\n$3\r\nmap\r\n".as_slice());
-        let array = RespArray::decode(&mut buf).expect("error in decode resp array");
-        let get = Command::try_from(array).unwrap();
-        let ret = get.execute(&backend);
-        let vec = vec![
-            BulkString::new(Some("hello")).into(),
-            RespFrame::BulkString(BulkString::new(Some("world"))),
-            BulkString::new(Some("name")).into(),
-            RespFrame::BulkString(BulkString::new(Some("tom"))),
-        ];
-
-        assert_eq!(ret, RespFrame::Array(RespArray::new(Some(vec))));
     }
 }

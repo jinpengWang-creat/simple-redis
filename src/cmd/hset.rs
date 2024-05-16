@@ -25,7 +25,7 @@ impl TryFrom<Vec<RespFrame>> for HSet {
         if expect_len % 2 == 1 {
             expect_len += 1;
         }
-        validate_nums_of_argument(&value, "hset", expect_len + 1)?;
+        validate_nums_of_argument(&value, "hset", expect_len + 1, 3)?;
         let mut frame_iter = value.into_iter();
         let mut fields = Vec::with_capacity(expect_len / 2);
         let mut values = Vec::with_capacity(expect_len / 2);
