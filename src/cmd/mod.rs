@@ -4,7 +4,9 @@ mod hget;
 mod hgetall;
 mod hmget;
 mod hset;
+mod sadd;
 mod set;
+mod sismember;
 use std::string::FromUtf8Error;
 
 use crate::Backend;
@@ -22,7 +24,9 @@ use self::hget::HGet;
 use self::hgetall::HGetAll;
 use self::hmget::Hmget;
 use self::hset::HSet;
+use self::sadd::Sadd;
 use self::set::Set;
+use self::sismember::Sismember;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -57,6 +61,8 @@ pub enum Command {
     Hmget(Hmget),
     HSet(HSet),
     HGetAll(HGetAll),
+    Sadd(Sadd),
+    Sismember(Sismember),
     Echo(Echo),
     Unrecognized(Unrecognized),
 }
@@ -89,6 +95,8 @@ impl TryFrom<RespArray> for Command {
             b"hmget" => Ok(Hmget::try_from(frames)?.into()),
             b"hset" => Ok(HSet::try_from(frames)?.into()),
             b"hgetall" => Ok(HGetAll::try_from(frames)?.into()),
+            b"sadd" => Ok(Sadd::try_from(frames)?.into()),
+            b"sismember" => Ok(Sismember::try_from(frames)?.into()),
             b"echo" => Ok(Echo::try_from(frames)?.into()),
             _ => Ok(Unrecognized.into()),
         }

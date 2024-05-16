@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 
 use dashmap::DashMap;
-use tracing::info;
 
 use crate::{BulkString, RespArray, RespFrame};
 
@@ -72,13 +71,9 @@ impl Backend {
         let success_count = fields
             .into_iter()
             .zip(values)
-            .map(|(field, value)| {
-                info!("insert key:{:?}, value:{:?}", field, value);
-                hmap.insert(field, value)
-            })
+            .map(|(field, value)| hmap.insert(field, value))
             .filter(Option::is_none)
             .count();
-        info!("success count: {:?}", success_count);
         RespFrame::Integer(success_count as i64)
     }
 
@@ -95,5 +90,27 @@ impl Backend {
             });
             RespFrame::Array(RespArray::new(Some(vec)))
         })
+    }
+
+    pub fn sadd(&self, key: String, field: String, value: RespFrame) -> RespFrame {
+        let field_map = self.hmap.entry(key).or_default();
+        let old_value = field_map.insert(field, value);
+        match old_value {
+            Some(_) => RespFrame::Integer(0),
+            None => RespFrame::Integer(1),
+        }
+    }
+
+    pub fn sismember(&self, key: &str, field: &str) -> RespFrame {
+        self.hmap
+            .get(key)
+            .map(|field_map| {
+                if field_map.contains_key(field) {
+                    RespFrame::Integer(1)
+                } else {
+                    RespFrame::Integer(0)
+                }
+            })
+            .unwrap_or(RespFrame::Integer(0))
     }
 }
