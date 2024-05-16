@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 
 use dashmap::DashMap;
 
-use crate::{RespArray, RespFrame, SimpleString};
+use crate::{BulkString, RespArray, RespFrame};
 
 #[derive(Debug, Clone)]
 pub struct Backend(BackendInner);
@@ -70,14 +70,11 @@ impl Backend {
         self.hmap.get(key).map(|field_map| {
             let mut map = BTreeMap::new();
             field_map.iter().for_each(|entry| {
-                map.insert(
-                    SimpleString::new(entry.key().clone()),
-                    entry.value().clone(),
-                );
+                map.insert(entry.key().clone(), entry.value().clone());
             });
             let mut vec = Vec::with_capacity(map.len() * 2);
             map.into_iter().for_each(|(key, value)| {
-                vec.push(key.into());
+                vec.push(BulkString::new(Some(key)).into());
                 vec.push(value);
             });
             RespFrame::Array(RespArray::new(Some(vec)))

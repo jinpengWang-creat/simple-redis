@@ -1,5 +1,9 @@
-mod hmap;
-mod map;
+mod echo;
+mod get;
+mod hget;
+mod hgetall;
+mod hset;
+mod set;
 use std::string::FromUtf8Error;
 
 use crate::Backend;
@@ -11,8 +15,12 @@ use crate::SimpleString;
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;
 
-use self::hmap::*;
-use self::map::*;
+use self::echo::*;
+use self::get::Get;
+use self::hget::HGet;
+use self::hgetall::HGetAll;
+use self::hset::HSet;
+use self::set::Set;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -46,6 +54,7 @@ pub enum Command {
     HGet(HGet),
     HSet(HSet),
     HGetAll(HGetAll),
+    Echo(Echo),
     Unrecognized(Unrecognized),
 }
 
@@ -76,6 +85,7 @@ impl TryFrom<RespArray> for Command {
             b"hget" => Ok(HGet::try_from(frames)?.into()),
             b"hset" => Ok(HSet::try_from(frames)?.into()),
             b"hgetall" => Ok(HGetAll::try_from(frames)?.into()),
+            b"echo" => Ok(Echo::try_from(frames)?.into()),
             _ => Ok(Unrecognized.into()),
         }
     }
@@ -228,9 +238,9 @@ mod tests {
         let get = Command::try_from(array).unwrap();
         let ret = get.execute(&backend);
         let vec = vec![
-            SimpleString::new("hello").into(),
+            BulkString::new(Some("hello")).into(),
             RespFrame::BulkString(BulkString::new(Some("world"))),
-            SimpleString::new("name").into(),
+            BulkString::new(Some("name")).into(),
             RespFrame::BulkString(BulkString::new(Some("tom"))),
         ];
 
