@@ -4,13 +4,13 @@ use std::{collections::BTreeMap, ops::Deref, sync::Arc};
 use crate::{BulkString, RespArray, RespFrame};
 
 #[derive(Debug, Clone)]
-pub struct Backend(BackendInner);
+pub struct Backend(Arc<BackendInner>);
 
 #[derive(Debug, Clone)]
 pub struct BackendInner {
-    map: Arc<DashMap<String, RespFrame>>,
-    hmap: Arc<DashMap<String, DashMap<String, RespFrame>>>,
-    hset: Arc<DashMap<String, DashSet<String>>>,
+    map: DashMap<String, RespFrame>,
+    hmap: DashMap<String, DashMap<String, RespFrame>>,
+    hset: DashMap<String, DashSet<String>>,
 }
 
 impl BackendInner {
@@ -97,7 +97,7 @@ impl Deref for Backend {
 
 impl Backend {
     pub fn new() -> Self {
-        Backend(BackendInner::new())
+        Backend(Arc::new(BackendInner::new()))
     }
 }
 
@@ -110,9 +110,9 @@ impl Default for Backend {
 impl BackendInner {
     fn new() -> Self {
         BackendInner {
-            map: Arc::new(DashMap::new()),
-            hmap: Arc::new(DashMap::new()),
-            hset: Arc::new(DashMap::new()),
+            map: DashMap::new(),
+            hmap: DashMap::new(),
+            hset: DashMap::new(),
         }
     }
 }
