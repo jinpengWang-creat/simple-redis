@@ -1,6 +1,5 @@
+use dashmap::{DashMap, DashSet};
 use std::{collections::BTreeMap, ops::Deref, sync::Arc};
-
-use dashmap::DashMap;
 
 use crate::{BulkString, RespArray, RespFrame};
 
@@ -9,46 +8,18 @@ pub struct Backend(BackendInner);
 
 #[derive(Debug, Clone)]
 pub struct BackendInner {
-    pub map: Arc<DashMap<String, RespFrame>>,
-    pub hmap: Arc<DashMap<String, DashMap<String, RespFrame>>>,
-}
-
-impl Deref for Backend {
-    type Target = BackendInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Backend {
-    pub fn new() -> Self {
-        Backend(BackendInner::new())
-    }
-}
-
-impl Default for Backend {
-    fn default() -> Self {
-        Self::new()
-    }
+    map: Arc<DashMap<String, RespFrame>>,
+    hmap: Arc<DashMap<String, DashMap<String, RespFrame>>>,
+    hset: Arc<DashMap<String, DashSet<String>>>,
 }
 
 impl BackendInner {
-    fn new() -> Self {
-        BackendInner {
-            map: Arc::new(DashMap::new()),
-            hmap: Arc::new(DashMap::new()),
-        }
-    }
-}
-
-impl Backend {
     pub fn get(&self, key: &str) -> Option<RespFrame> {
         self.map.get(key).map(|v| v.value().clone())
     }
 
-    pub fn set(&self, key: String, value: RespFrame) {
-        self.map.insert(key, value);
+    pub fn set(&self, key: String, value: RespFrame) -> Option<RespFrame> {
+        self.map.insert(key, value)
     }
 
     pub fn hget(&self, key: &str, field: &str) -> Option<RespFrame> {
@@ -92,25 +63,56 @@ impl Backend {
         })
     }
 
-    pub fn sadd(&self, key: String, field: String, value: RespFrame) -> RespFrame {
-        let field_map = self.hmap.entry(key).or_default();
-        let old_value = field_map.insert(field, value);
-        match old_value {
-            Some(_) => RespFrame::Integer(0),
-            None => RespFrame::Integer(1),
-        }
+    pub fn sadd(&self, key: String, fields: Vec<String>) -> RespFrame {
+        let field_set = self.hset.entry(key).or_default();
+        let success_count = fields
+            .into_iter()
+            .map(|field| field_set.insert(field))
+            .filter(|b| *b)
+            .count();
+        RespFrame::Integer(success_count as i64)
     }
 
     pub fn sismember(&self, key: &str, field: &str) -> RespFrame {
-        self.hmap
+        self.hset
             .get(key)
             .map(|field_map| {
-                if field_map.contains_key(field) {
+                if field_map.contains(field) {
                     RespFrame::Integer(1)
                 } else {
                     RespFrame::Integer(0)
                 }
             })
             .unwrap_or(RespFrame::Integer(0))
+    }
+}
+
+impl Deref for Backend {
+    type Target = BackendInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Backend {
+    pub fn new() -> Self {
+        Backend(BackendInner::new())
+    }
+}
+
+impl Default for Backend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BackendInner {
+    fn new() -> Self {
+        BackendInner {
+            map: Arc::new(DashMap::new()),
+            hmap: Arc::new(DashMap::new()),
+            hset: Arc::new(DashMap::new()),
+        }
     }
 }

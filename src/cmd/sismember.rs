@@ -18,7 +18,7 @@ impl TryFrom<Vec<RespFrame>> for Sismember {
     type Error = CommandError;
 
     fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
-        validate_nums_of_argument(&value, "sadd", 2, 2)?;
+        validate_nums_of_argument(&value, "sismember", 2, 2)?;
         let mut frame_iter = value.into_iter();
         let key = extract_string(frame_iter.next())?;
         let field = extract_string(frame_iter.next())?;

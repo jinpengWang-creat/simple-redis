@@ -37,16 +37,6 @@ impl From<String> for Get {
     }
 }
 
-impl TryFrom<Vec<u8>> for Get {
-    type Error = CommandError;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Get::new(String::from_utf8(value).map_err(|e| {
-            CommandError::InvalidArgument(format!("{:?}", e))
-        })?))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use bytes::BytesMut;
