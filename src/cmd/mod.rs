@@ -159,7 +159,7 @@ fn extract_frame(frame: Option<RespFrame>) -> Result<RespFrame, CommandError> {
 }
 
 fn validate_nums_of_argument(
-    frames: &Vec<RespFrame>,
+    frames: &[RespFrame],
     validate_type: &str,
     expect_num: usize,
     min_num: usize,

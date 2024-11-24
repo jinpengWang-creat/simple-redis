@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::{
     cmd::{Command, CommandExecutor},
-    Backend, RespDecode, RespEncode, RespError, RespFrame, SimpleError,
+    Backend, RespDecodeV2, RespEncode, RespError, RespFrame, SimpleError,
 };
 
 #[derive(Debug)]

@@ -24,3 +24,4 @@ tokio-stream = "0.1.15"
 tokio-util = { version = "0.7.11", features = ["codec"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+winnow = { version = "0.6.20", features = ["simd"] }

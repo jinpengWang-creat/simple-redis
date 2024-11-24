@@ -19,7 +19,7 @@ pub use self::{
     set::RespSet, simple_error::SimpleError, simple_string::SimpleString,
 };
 
-const CRLF: &[u8] = b"\r\n";
+pub use crate::CRLF;
 const CRLF_LEN: usize = CRLF.len();
 const AGGREGATE_FRAME_TYPE: [&[u8]; 4] = [b"$", b"*", b"%", b"~"];
 const DEFAULT_FRAME_SIZE: usize = 16;
@@ -58,6 +58,8 @@ pub enum RespError {
     InvalidFloatError(#[from] std::num::ParseFloatError),
     #[error("Frame is not complete")]
     NotComplete,
+    #[error("Parse error")]
+    ParseError,
 }
 
 fn find_crlf(buf: &[u8], nth_crlf: usize) -> Option<usize> {
